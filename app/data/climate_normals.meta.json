@@ -9,7 +9,7 @@
     "mean_humidity_pct",
     "sd_humidity_pct"
   ],
-  "cities_covered": 4374,
+  "cities_covered": 4756,
   "window_start": "2023-01-01",
   "window_end": "2025-12-31",
   "years": 3,
@@ -17,6 +17,6 @@
   "cache_version": 2,
   "min_samples": 20,
   "geonameid_sha256": "d769779fa66c5186d6161f376c62f32a808b2997c03f872b95d64c690d1a6117",
-  "built_at": "2026-08-27T06:53:13.608451+00:00",
+  "built_at": "2026-08-29T08:57:05.366222+00:00",
   "source": "Open-Meteo ERA5 reanalysis (archive-api.open-meteo.com)"
 }
