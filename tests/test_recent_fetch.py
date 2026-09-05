@@ -270,3 +270,46 @@ class TestProgressAccounting:
         )
 
         assert _work_units(groups, TODAY) == ticked
+
+
+class TestPacingIsAnnounced:
+    """A long pause has to say so.
+
+    The gap between batches is the pacer's, not the server's, and it grows as
+    throttling drives the rate down -- at the 5.0 floor a wide archive batch
+    waits roughly 25 minutes. Silence that long is indistinguishable from a
+    hung process, and has twice sent someone digging through netstat to find
+    nothing wrong. A pause worth noticing announces itself.
+    """
+
+    def _run(self, monkeypatch, capsys, rate):
+        import io
+        import time as time_module
+
+        from scripts import fetch_recent_daily as mod
+
+        def fake_fetch_batch(batch, make_url, *, timeout):
+            return [{} for _ in batch], False
+
+        slept = []
+        monkeypatch.setattr(mod, "fetch_batch", fake_fetch_batch)
+        monkeypatch.setattr(time_module, "sleep", slept.append)
+
+        start, end = date(2026, 1, 1), date(2026, 8, 10)
+        groups = {(start, end): [_city(1)]}
+        mod._run_phase(
+            "backfill", groups, {}, TODAY, mod.Pacer(rate), 180.0, io.StringIO()
+        )
+        return slept, capsys.readouterr().out
+
+    def test_a_long_pacing_sleep_is_logged(self, monkeypatch, capsys):
+        slept, out = self._run(monkeypatch, capsys, rate=0.5)
+
+        assert any(s > 30 for s in slept), f"expected a long sleep, got {slept}"
+        assert "pacing" in out, f"long pause was silent; log was:\n{out}"
+
+    def test_a_short_pacing_sleep_stays_quiet(self, monkeypatch, capsys):
+        """One line per batch already exists; do not double the log for a blip."""
+        _slept, out = self._run(monkeypatch, capsys, rate=600.0)
+
+        assert "pacing" not in out, f"short pause should not log; log was:\n{out}"

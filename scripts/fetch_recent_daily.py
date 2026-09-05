@@ -68,6 +68,11 @@ MAX_PAST_DAYS = 92
 # location-years because that is what the baseline fetch spends.
 DAYS_PER_YEAR = 365.0
 
+# Above this, a pacing pause gets a line of its own. Below it, the gap is too
+# short to mistake for trouble and a second line per batch would only double
+# the log.
+PACING_ANNOUNCE_SECONDS = 30.0
+
 
 def _daily_params() -> dict[str, str]:
     return {
@@ -412,6 +417,17 @@ def _run_phase(
                     time.time() - batch_started
                 )
                 if remaining > 0:
+                    # This gap is the pacer's doing, not the server's. Once
+                    # throttling has driven the rate to its floor the wait runs
+                    # to tens of minutes, and an unexplained silence that long
+                    # reads as a hung process -- it has twice sent someone
+                    # through netstat to find nothing wrong.
+                    if remaining >= PACING_ANNOUNCE_SECONDS:
+                        print(
+                            f"    pacing, sleeping {remaining:.0f}s "
+                            f"({pacer.rate:.1f} location-years/min)",
+                            flush=True,
+                        )
                     time.sleep(remaining)
 
     return cached_days, False
